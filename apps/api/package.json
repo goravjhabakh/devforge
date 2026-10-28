@@ -4,7 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "@devforge/config": "workspace:*",
@@ -12,7 +15,13 @@
     "@devforge/db": "workspace:*",
     "@devforge/protocol": "workspace:*",
     "@fastify/websocket": "^11.3.4",
+    "dotenv": "^18.0.9",
+    "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",
-    "ws": "^8.22.0"
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
   }
 }
