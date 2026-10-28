@@ -13,7 +13,10 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "test": "vitest run --passWithNoTests",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:generate": "pnpm --filter @devforge/db db:generate",
+    "db:migrate": "pnpm --filter @devforge/db db:migrate",
+    "db:seed": "pnpm --filter @devforge/db db:seed"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",

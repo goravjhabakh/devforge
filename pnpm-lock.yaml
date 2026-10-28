@@ -308,9 +308,15 @@ importers:
         specifier: ^3.4.9
         version: 3.4.9
     devDependencies:
+      dotenv:
+        specifier: ^18.0.9
+        version: 18.0.9
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
   packages/protocol:
     dependencies:
@@ -1673,6 +1679,14 @@ packages:
       }
     engines: { node: ">=8" }
 
+  dotenv@18.0.9:
+    resolution:
+      {
+        integrity: sha512-3fVOW4cB02R066PUSwn8O4TJyz9NckQl7F81blIbaq9jKBm2tSmOKky7ZHIXzGvkVPXCSn6jkpziBPZdGFs8Tw==,
+      }
+    engines: { node: ">=12" }
+    hasBin: true
+
   drizzle-kit@0.31.11:
     resolution:
       {
@@ -3009,6 +3023,8 @@ snapshots:
   dequal@2.0.3: {}
 
   detect-libc@2.1.2: {}
+
+  dotenv@18.0.9: {}
 
   drizzle-kit@0.31.11:
     dependencies:
