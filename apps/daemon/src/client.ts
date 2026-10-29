@@ -19,132 +19,150 @@ type StartDaemonClientOptions = {
   bindingRegistry: BindingRegistry
 }
 
+const INITIAL_RECONNECT_DELAY_MS = 250
+const MAX_RECONNECT_DELAY_MS = 5_000
+
 export function startDaemonClient({
   config,
   localConfig,
   bindingRegistry,
 }: StartDaemonClientOptions): WebSocket {
-  const socket = new WebSocket(config.controlPlaneUrl, {
-    headers: {
-      Authorization: `Bearer ${config.credential}`,
-      "X-Devforge-Daemon-Id": config.daemonId,
-    },
-  })
+  let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS
 
-  let readyReceived = false
-
-  socket.on("open", () => {
-    const hello = DaemonToApiMessageSchema.parse({
-      version: PROTOCOL_VERSION,
-      type: "daemon.hello",
-      messageId: randomUUID(),
-      payload: {
-        daemonId: config.daemonId,
-        supportedVersions: [PROTOCOL_VERSION],
-        capabilities: ["git.status"],
-        bindings: localConfig.bindings.map((binding) => ({
-          projectId: binding.projectId,
-          bindingId: binding.bindingId,
-        })),
+  function connect(): WebSocket {
+    const socket = new WebSocket(config.controlPlaneUrl, {
+      headers: {
+        Authorization: `Bearer ${config.credential}`,
+        "X-Devforge-Daemon-Id": config.daemonId,
       },
     })
 
-    socket.send(JSON.stringify(hello))
-  })
+    let readyReceived = false
 
-  socket.on("message", async (data) => {
-    let raw: unknown
+    socket.on("open", () => {
+      reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS
 
-    try {
-      raw = JSON.parse(data.toString())
-    } catch {
-      socket.close(1008, "Invalid protocol message")
-      return
-    }
+      const hello = DaemonToApiMessageSchema.parse({
+        version: PROTOCOL_VERSION,
+        type: "daemon.hello",
+        messageId: randomUUID(),
+        payload: {
+          daemonId: config.daemonId,
+          supportedVersions: [PROTOCOL_VERSION],
+          capabilities: ["git.status"],
+          bindings: localConfig.bindings.map((binding) => ({
+            projectId: binding.projectId,
+            bindingId: binding.bindingId,
+          })),
+        },
+      })
 
-    const parsed = ApiToDaemonMessageSchema.safeParse(raw)
+      socket.send(JSON.stringify(hello))
+    })
 
-    if (!parsed.success) {
-      socket.close(1008, "Invalid protocol message")
-      return
-    }
-
-    const message = parsed.data
-
-    if (message.type === "daemon.ready") {
-      if (readyReceived) {
-        console.warn("Received unexpected daemon.ready after handshake")
-        return
-      }
-
-      readyReceived = true
-
-      console.log(`Daemon ready: ${message.payload.bindings.length} binding(s) accepted`)
-
-      return
-    }
-
-    if (message.type === "heartbeat.ack") {
-      return
-    }
-
-    if (message.type === "command.request") {
-      if (!readyReceived) {
-        console.warn("Received command.request before daemon.ready")
-        return
-      }
+    socket.on("message", async (data) => {
+      let raw: unknown
 
       try {
-        const outcome = await handleCommandRequest(message, {
-          bindingRegistry,
-          runGitStatus,
-        })
-
-        const response = DaemonToApiMessageSchema.parse({
-          version: PROTOCOL_VERSION,
-          type: outcome.type,
-          messageId: randomUUID(),
-          payload: outcome.payload,
-        })
-
-        socket.send(JSON.stringify(response))
+        raw = JSON.parse(data.toString())
       } catch {
-        // The command handler is expected to convert normal capability
-        // failures into command.error responses. Reaching this branch means
-        // an unexpected internal failure occurred.
-        const startedAt = new Date().toISOString()
-        const completedAt = new Date().toISOString()
-
-        const response = DaemonToApiMessageSchema.parse({
-          version: PROTOCOL_VERSION,
-          type: "command.error",
-          messageId: randomUUID(),
-          payload: {
-            requestId: message.payload.requestId,
-            projectId: message.payload.projectId,
-            bindingId: message.payload.bindingId,
-            commandType: "git.status",
-            code: "GIT_STATUS_FAILED",
-            message: "Git status failed",
-            startedAt,
-            completedAt,
-          },
-        })
-
-        socket.send(JSON.stringify(response))
+        socket.close(1008, "Invalid protocol message")
+        return
       }
 
-      return
-    }
-  })
+      const parsed = ApiToDaemonMessageSchema.safeParse(raw)
 
-  socket.on("close", (code, reason) => {
-    console.log(`Daemon connection closed (${code}): ${reason.toString()}`)
-  })
+      if (!parsed.success) {
+        socket.close(1008, "Invalid protocol message")
+        return
+      }
 
-  socket.on("error", (error) => {
-    console.error("Daemon WebSocket error:", error.message)
-  })
+      const message = parsed.data
 
-  return socket
+      if (message.type === "daemon.ready") {
+        if (readyReceived) {
+          console.warn("Received unexpected daemon.ready after handshake")
+          return
+        }
+
+        readyReceived = true
+
+        console.log(`Daemon ready: ${message.payload.bindings.length} binding(s) accepted`)
+
+        return
+      }
+
+      if (message.type === "heartbeat.ack") {
+        return
+      }
+
+      if (message.type === "command.request") {
+        if (!readyReceived) {
+          console.warn("Received command.request before daemon.ready")
+          return
+        }
+
+        try {
+          const outcome = await handleCommandRequest(message, {
+            bindingRegistry,
+            runGitStatus,
+          })
+
+          const response = DaemonToApiMessageSchema.parse({
+            version: PROTOCOL_VERSION,
+            type: outcome.type,
+            messageId: randomUUID(),
+            payload: outcome.payload,
+          })
+
+          socket.send(JSON.stringify(response))
+        } catch {
+          // The command handler is expected to convert normal capability
+          // failures into command.error responses. Reaching this branch means
+          // an unexpected internal failure occurred.
+          const startedAt = new Date().toISOString()
+          const completedAt = new Date().toISOString()
+
+          const response = DaemonToApiMessageSchema.parse({
+            version: PROTOCOL_VERSION,
+            type: "command.error",
+            messageId: randomUUID(),
+            payload: {
+              requestId: message.payload.requestId,
+              projectId: message.payload.projectId,
+              bindingId: message.payload.bindingId,
+              commandType: "git.status",
+              code: "GIT_STATUS_FAILED",
+              message: "Git status failed",
+              startedAt,
+              completedAt,
+            },
+          })
+
+          socket.send(JSON.stringify(response))
+        }
+
+        return
+      }
+    })
+
+    socket.on("close", (code, reason) => {
+      console.log(`Daemon connection closed (${code}): ${reason.toString()}`)
+
+      const delayMs = reconnectDelayMs
+      reconnectDelayMs = Math.min(reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS)
+
+      setTimeout(() => {
+        connect()
+      }, delayMs)
+    })
+
+    socket.on("error", (error) => {
+      console.error("Daemon WebSocket error:", error.message)
+    })
+
+    return socket
+  }
+
+  return connect()
 }

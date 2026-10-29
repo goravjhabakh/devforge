@@ -394,6 +394,32 @@ describe("POST /api/projects/:projectId/git-status", () => {
         code: "COMMAND_TIMEOUT",
       },
     })
+
+    const nextCommandPromise = waitForCommandRequest(socket)
+    const nextResponsePromise = app.inject({
+      method: "POST",
+      url: `/api/projects/${projectId}/git-status`,
+    })
+    const nextCommand = await nextCommandPromise
+
+    socket.send(
+      JSON.stringify({
+        version: 1,
+        type: "command.result",
+        messageId: "77777777-7777-4777-8777-777777777777",
+        payload: {
+          requestId: nextCommand.payload.requestId,
+          projectId,
+          bindingId,
+          commandType: "git.status",
+          result: validStatus,
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+        },
+      })
+    )
+
+    expect((await nextResponsePromise).statusCode).toBe(200)
   })
 
   it("fails promptly when the daemon disconnects", async () => {
@@ -434,6 +460,33 @@ describe("POST /api/projects/:projectId/git-status", () => {
         code: "DAEMON_DISCONNECTED",
       },
     })
+
+    const reconnectedSocket = await connectDaemon(wsUrl)
+    const nextCommandPromise = waitForCommandRequest(reconnectedSocket)
+    const nextResponsePromise = app.inject({
+      method: "POST",
+      url: `/api/projects/${projectId}/git-status`,
+    })
+    const nextCommand = await nextCommandPromise
+
+    reconnectedSocket.send(
+      JSON.stringify({
+        version: 1,
+        type: "command.result",
+        messageId: "77777777-7777-4777-8777-877777777777",
+        payload: {
+          requestId: nextCommand.payload.requestId,
+          projectId,
+          bindingId,
+          commandType: "git.status",
+          result: validStatus,
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+        },
+      })
+    )
+
+    expect((await nextResponsePromise).statusCode).toBe(200)
   })
 
   it("does not accept a mismatched command result", async () => {
