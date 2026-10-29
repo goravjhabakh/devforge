@@ -1,11 +1,13 @@
 import { z } from "zod"
-import { GitStatusSchema } from "@devforge/protocol"
 import { ActivityEventSchema } from "./activity.js"
+import { BootstrapStateSchema } from "./bootstrap.js"
+import { GitStatusSchema } from "./git-status.js"
 
 export const ProjectDetailSchema = z.strictObject({
   project: z.strictObject({
     id: z.uuid(),
     name: z.string().min(1),
+    bootstrapState: BootstrapStateSchema,
   }),
 
   daemon: z.strictObject({

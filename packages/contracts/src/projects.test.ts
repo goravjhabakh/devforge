@@ -26,6 +26,7 @@ describe("ProjectDetailSchema", () => {
       project: {
         id: projectId,
         name: "DevForge",
+        bootstrapState: "not_started",
       },
       daemon: {
         id: daemonId,
@@ -50,6 +51,7 @@ describe("ProjectDetailSchema", () => {
       project: {
         id: projectId,
         name: "DevForge",
+        bootstrapState: "not_started",
       },
       daemon: {
         id: daemonId,
@@ -71,6 +73,7 @@ describe("ProjectDetailSchema", () => {
       project: {
         id: projectId,
         name: "DevForge",
+        bootstrapState: "not_started",
       },
       daemon: {
         id: daemonId,
@@ -87,11 +90,55 @@ describe("ProjectDetailSchema", () => {
     expect(ProjectDetailSchema.safeParse(value).success).toBe(true)
   })
 
+  it("requires a valid bootstrapState", () => {
+    const value = {
+      project: {
+        id: projectId,
+        name: "DevForge",
+        bootstrapState: "invalid_state",
+      },
+      daemon: {
+        id: daemonId,
+        connected: true,
+        lastSeenAt: "2026-10-29T12:00:00.000Z",
+      },
+      binding: {
+        available: true,
+      },
+      latestStatus: null,
+      activity: [],
+    }
+
+    expect(ProjectDetailSchema.safeParse(value).success).toBe(false)
+  })
+
+  it("rejects a missing bootstrapState", () => {
+    const value = {
+      project: {
+        id: projectId,
+        name: "DevForge",
+      },
+      daemon: {
+        id: daemonId,
+        connected: true,
+        lastSeenAt: "2026-10-29T12:00:00.000Z",
+      },
+      binding: {
+        available: true,
+      },
+      latestStatus: null,
+      activity: [],
+    }
+
+    expect(ProjectDetailSchema.safeParse(value).success).toBe(false)
+  })
+
   it("rejects repository and local path fields", () => {
     const value = {
       project: {
         id: projectId,
         name: "DevForge",
+        bootstrapState: "not_started",
       },
       daemon: {
         id: daemonId,

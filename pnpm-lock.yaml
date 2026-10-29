@@ -333,9 +333,6 @@ importers:
 
   packages/contracts:
     dependencies:
-      "@devforge/protocol":
-        specifier: workspace:*
-        version: link:../protocol
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -361,6 +358,9 @@ importers:
 
   packages/protocol:
     dependencies:
+      "@devforge/contracts":
+        specifier: workspace:*
+        version: link:../contracts
       zod:
         specifier: ^4.6.7
         version: 4.6.7

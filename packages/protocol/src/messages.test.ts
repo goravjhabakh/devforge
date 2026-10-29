@@ -15,6 +15,9 @@ const daemonId = "33333333-3333-4333-8333-333333333333"
 const projectId = "44444444-4444-4444-8444-444444444444"
 const bindingId = "55555555-5555-4555-8555-555555555555"
 
+const planId = "66666666-6666-4666-8666-666666666666"
+const planHash = "a".repeat(64)
+
 describe("daemon protocol messages", () => {
   it("accepts a valid daemon.hello message", () => {
     const value = {
@@ -213,5 +216,80 @@ describe("daemon protocol messages", () => {
     }
 
     expect(DaemonToApiMessageSchema.safeParse(value).success).toBe(false)
+  })
+
+  it("accepts a typed bootstrap.apply request", () => {
+    const value = {
+      version: 1,
+      type: "command.request",
+      messageId,
+      payload: {
+        requestId,
+        projectId,
+        bindingId,
+        command: {
+          type: "bootstrap.apply",
+          planId,
+          planHash,
+          mode: "initial",
+          plan: {
+            schemaVersion: 1,
+            projectId,
+            bindingId,
+            operations: [],
+          },
+        },
+      },
+    }
+
+    expect(CommandRequestMessageSchema.safeParse(value).success).toBe(true)
+  })
+
+  it("rejects local paths in bootstrap.apply requests", () => {
+    const value = {
+      version: 1,
+      type: "command.request",
+      messageId,
+      payload: {
+        requestId,
+        projectId,
+        bindingId,
+        command: {
+          type: "bootstrap.apply",
+          planId,
+          planHash,
+          mode: "initial",
+          repositoryRoot: "C:\\secret",
+          plan: {
+            schemaVersion: 1,
+            projectId,
+            bindingId,
+            operations: [],
+          },
+        },
+      },
+    }
+
+    expect(CommandRequestMessageSchema.safeParse(value).success).toBe(false)
+  })
+
+  it("rejects bootstrap error fields on git.status errors", () => {
+    const value = {
+      version: 1,
+      type: "command.error",
+      messageId,
+      payload: {
+        requestId,
+        projectId,
+        bindingId,
+        commandType: "git.status",
+        code: "PATH_INVALID",
+        message: "invalid path",
+        startedAt: "2026-10-29T12:00:00.000Z",
+        completedAt: "2026-10-29T12:00:01.000Z",
+      },
+    }
+
+    expect(CommandErrorMessageSchema.safeParse(value).success).toBe(false)
   })
 })
