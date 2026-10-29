@@ -8,8 +8,10 @@ import {
   DaemonToApiMessageSchema,
   PROTOCOL_VERSION,
 } from "@devforge/protocol"
+
 import type { BindingRegistry } from "./binding-registry.js"
-import { BindingNotAllowedError } from "./binding-registry.js"
+import { handleCommandRequest } from "./command-handler.js"
+import { runGitStatus } from "./git-status.js"
 
 type StartDaemonClientOptions = {
   config: DaemonConfig
@@ -29,8 +31,10 @@ export function startDaemonClient({
     },
   })
 
+  let readyReceived = false
+
   socket.on("open", () => {
-    const hello = {
+    const hello = DaemonToApiMessageSchema.parse({
       version: PROTOCOL_VERSION,
       type: "daemon.hello",
       messageId: randomUUID(),
@@ -43,7 +47,7 @@ export function startDaemonClient({
           bindingId: binding.bindingId,
         })),
       },
-    }
+    })
 
     socket.send(JSON.stringify(hello))
   })
@@ -68,6 +72,13 @@ export function startDaemonClient({
     const message = parsed.data
 
     if (message.type === "daemon.ready") {
+      if (readyReceived) {
+        console.warn("Received unexpected daemon.ready after handshake")
+        return
+      }
+
+      readyReceived = true
+
       console.log(`Daemon ready: ${message.payload.bindings.length} binding(s) accepted`)
 
       return
@@ -78,24 +89,33 @@ export function startDaemonClient({
     }
 
     if (message.type === "command.request") {
-      const startedAt = new Date().toISOString()
+      if (!readyReceived) {
+        console.warn("Received command.request before daemon.ready")
+        return
+      }
 
       try {
-        await bindingRegistry.authorizeBinding(message.payload.projectId, message.payload.bindingId)
+        const outcome = await handleCommandRequest(message, {
+          bindingRegistry,
+          runGitStatus,
+        })
 
-        // Binding is locally authorized.
-        //
-        // Git execution is intentionally not implemented yet.
-        // The next step will use the approved canonical root.
-        return
-      } catch (error) {
-        if (!(error instanceof BindingNotAllowedError)) {
-          throw error
-        }
+        const response = DaemonToApiMessageSchema.parse({
+          version: PROTOCOL_VERSION,
+          type: outcome.type,
+          messageId: randomUUID(),
+          payload: outcome.payload,
+        })
 
+        socket.send(JSON.stringify(response))
+      } catch {
+        // The command handler is expected to convert normal capability
+        // failures into command.error responses. Reaching this branch means
+        // an unexpected internal failure occurred.
+        const startedAt = new Date().toISOString()
         const completedAt = new Date().toISOString()
 
-        const response = DaemonToApiMessageSchema.safeParse({
+        const response = DaemonToApiMessageSchema.parse({
           version: PROTOCOL_VERSION,
           type: "command.error",
           messageId: randomUUID(),
@@ -104,16 +124,17 @@ export function startDaemonClient({
             projectId: message.payload.projectId,
             bindingId: message.payload.bindingId,
             commandType: "git.status",
-            code: "BINDING_NOT_ALLOWED",
-            message: "Binding is not allowed",
+            code: "GIT_STATUS_FAILED",
+            message: "Git status failed",
             startedAt,
             completedAt,
           },
         })
 
         socket.send(JSON.stringify(response))
-        return
       }
+
+      return
     }
   })
 
