@@ -188,6 +188,7 @@ export const ProjectBootstrapSchema = z.strictObject({
 
 export type BootstrapState = z.infer<typeof BootstrapStateSchema>
 export type BootstrapPlanStatus = z.infer<typeof BootstrapPlanStatusSchema>
+export type BootstrapFailureCode = z.infer<typeof BootstrapFailureCodeSchema>
 
 export type BootstrapOperation = z.infer<typeof BootstrapOperationSchema>
 export type BootstrapPlanDocument = z.infer<typeof BootstrapPlanDocumentSchema>

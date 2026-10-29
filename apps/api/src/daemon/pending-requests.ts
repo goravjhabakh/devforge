@@ -18,12 +18,14 @@ export type PendingRequestOutcome =
       type: "daemon_disconnected"
     }
 
+type PendingCommandType = "git.status" | "bootstrap.apply"
+
 type PendingRequest = {
   requestId: string
   projectId: string
   daemonId: string
   bindingId: string
-  commandType: "git.status"
+  commandType: PendingCommandType
   resolve: (outcome: PendingRequestOutcome) => void
   timeout: ReturnType<typeof setTimeout>
 }
@@ -36,6 +38,7 @@ export class PendingRequestManager {
     projectId: string
     daemonId: string
     bindingId: string
+    commandType: PendingCommandType
     timeoutMs: number
   }): Promise<PendingRequestOutcome> {
     return new Promise((resolve) => {
@@ -58,7 +61,7 @@ export class PendingRequestManager {
         projectId: input.projectId,
         daemonId: input.daemonId,
         bindingId: input.bindingId,
-        commandType: "git.status",
+        commandType: input.commandType,
         resolve,
         timeout,
       })

@@ -48,6 +48,7 @@ export const ApiErrorCodeSchema = z.enum([
   "COMMAND_TIMEOUT",
   "DAEMON_COMMAND_FAILED",
   "INTERNAL_ERROR",
+  "BOOTSTRAP_STATE_CONFLICT",
 ])
 
 export const ApiErrorSchema = z.strictObject({

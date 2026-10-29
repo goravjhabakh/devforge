@@ -1,4 +1,4 @@
-import type { BootstrapPlanDocument } from "@devforge/contracts"
+import type { BootstrapFailureCode, BootstrapPlanDocument } from "@devforge/contracts"
 import { bootstrapApprovals, bootstrapPlans, type createDb, projects } from "@devforge/db"
 import { and, desc, eq, inArray } from "drizzle-orm"
 
@@ -137,4 +137,131 @@ export async function getBootstrapApproval(db: Database, planId: string) {
     .limit(1)
 
   return approval ?? null
+}
+
+export async function beginBootstrapExecution(
+  db: Database,
+  input: {
+    projectId: string
+    planId: string
+    retry: boolean
+  }
+) {
+  return db.transaction(async (tx) => {
+    const [plan] = await tx
+      .select()
+      .from(bootstrapPlans)
+      .where(
+        and(eq(bootstrapPlans.id, input.planId), eq(bootstrapPlans.projectId, input.projectId))
+      )
+      .limit(1)
+
+    if (!plan) {
+      return null
+    }
+
+    const allowedStatus = input.retry ? "failed" : "approved"
+
+    if (plan.status !== allowedStatus) {
+      return null
+    }
+
+    const attemptCount = plan.attemptCount + 1
+    const now = new Date()
+
+    await tx
+      .update(bootstrapPlans)
+      .set({
+        status: "executing",
+        attemptCount,
+        lastError: null,
+        completedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(bootstrapPlans.id, plan.id))
+
+    await tx
+      .update(projects)
+      .set({
+        bootstrapState: "executing",
+        updatedAt: now,
+      })
+      .where(eq(projects.id, input.projectId))
+
+    return {
+      ...plan,
+      status: "executing" as const,
+      attemptCount,
+      lastError: null,
+      completedAt: null,
+      updatedAt: now,
+    }
+  })
+}
+
+export async function completeBootstrapExecution(
+  db: Database,
+  input: {
+    projectId: string
+    planId: string
+    completedAt: Date
+  }
+) {
+  return db.transaction(async (tx) => {
+    await tx
+      .update(bootstrapPlans)
+      .set({
+        status: "succeeded",
+        lastError: null,
+        completedAt: input.completedAt,
+        updatedAt: input.completedAt,
+      })
+      .where(
+        and(eq(bootstrapPlans.id, input.planId), eq(bootstrapPlans.projectId, input.projectId))
+      )
+
+    await tx
+      .update(projects)
+      .set({
+        bootstrapState: "succeeded",
+        updatedAt: input.completedAt,
+      })
+      .where(eq(projects.id, input.projectId))
+  })
+}
+
+export async function failBootstrapExecution(
+  db: Database,
+  input: {
+    projectId: string
+    planId: string
+    code: BootstrapFailureCode
+    message: string
+    completedAt: Date
+  }
+) {
+  return db.transaction(async (tx) => {
+    await tx
+      .update(bootstrapPlans)
+      .set({
+        status: "failed",
+        lastError: {
+          code: input.code,
+          message: input.message,
+        },
+        completedAt: input.completedAt,
+        updatedAt: input.completedAt,
+      })
+      .where(
+        and(eq(bootstrapPlans.id, input.planId), eq(bootstrapPlans.projectId, input.projectId))
+      )
+
+    await tx
+      .update(projects)
+      .set({
+        bootstrapState: "failed",
+        updatedAt: input.completedAt,
+      })
+      .where(eq(projects.id, input.projectId))
+  })
 }

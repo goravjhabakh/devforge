@@ -89,6 +89,8 @@ export const BootstrapFailedActivitySchema = ActivityBaseSchema.extend({
     attempt: z.number().int().positive(),
     code: BootstrapFailureCodeSchema,
     message: z.string().min(1),
+    completedOperationCount: z.number().int().nonnegative().optional(),
+    reusedOperationCount: z.number().int().nonnegative().optional(),
   }),
 })
 
