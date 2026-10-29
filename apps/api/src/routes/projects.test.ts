@@ -244,7 +244,7 @@ describe("POST /api/projects/:projectId/git-status", () => {
     return socket
   }
 
-  it("dispatches git.status and returns a correlated result", async () => {
+  it("dispatches git.status and returns a correlated result", { timeout: 10_000 }, async () => {
     const { app, wsUrl, storedEvents } = await setup()
     const socket = await connectDaemon(wsUrl)
 

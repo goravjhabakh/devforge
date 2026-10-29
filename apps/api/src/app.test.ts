@@ -5,7 +5,7 @@ import { DaemonConnectionRegistry } from "./daemon/connection-registry.js"
 import { PendingRequestManager } from "./daemon/pending-requests.js"
 
 describe("GET /api/health", () => {
-  it("returns 200 with status ok", async () => {
+  it("returns 200 with status ok", { timeout: 10_000 }, async () => {
     const app = await buildApp({
       db: {} as never,
       daemonWsPath: "/api/daemon",

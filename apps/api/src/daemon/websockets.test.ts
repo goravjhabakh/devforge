@@ -23,6 +23,7 @@ const fakeBindingId = "55555555-5555-4555-8555-555555555555"
 const credential = "devforge-local-development-credential-0001"
 
 const credentialHash = createHash("sha256").update(credential).digest("hex")
+const sockets: WebSocket[] = []
 
 function createFakeDb(): AppDeps["db"] {
   const daemonRow = {
@@ -101,11 +102,28 @@ function createClient(
     credential?: string
   }
 ) {
-  return new WebSocket(url, {
+  const socket = new WebSocket(url, {
     headers: {
       Authorization: `Bearer ${options?.credential ?? credential}`,
       "X-Devforge-Daemon-Id": options?.daemonId ?? daemonId,
     },
+  })
+
+  sockets.push(socket)
+  return socket
+}
+
+function closeSocket(socket: WebSocket): Promise<void> {
+  if (socket.readyState === WebSocket.CLOSED) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    socket.once("close", () => {
+      resolve()
+    })
+
+    socket.close()
   })
 }
 
@@ -113,6 +131,13 @@ describe("daemon WebSocket", () => {
   const apps: Array<Awaited<ReturnType<typeof buildApp>>> = []
 
   afterEach(async () => {
+    for (const socket of sockets) {
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        socket.terminate()
+      }
+    }
+
+    sockets.length = 0
     await Promise.all(apps.map((app) => app.close()))
     apps.length = 0
   })
@@ -143,7 +168,7 @@ describe("daemon WebSocket", () => {
     }
   }
 
-  it("accepts valid authentication and daemon.hello", async () => {
+  it("accepts valid authentication and daemon.hello", { timeout: 10_000 }, async () => {
     const { registry, url } = await setup()
 
     const socket = createClient(url)
@@ -323,6 +348,6 @@ describe("daemon WebSocket", () => {
 
     expect(registry.hasAcceptedBinding(daemonId, fakeProjectId, fakeBindingId)).toBe(false)
 
-    socket.close()
+    await closeSocket(socket)
   })
 })

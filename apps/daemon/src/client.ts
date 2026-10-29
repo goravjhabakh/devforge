@@ -3,14 +3,25 @@ import { randomUUID } from "node:crypto"
 import WebSocket from "ws"
 
 import type { DaemonConfig, DaemonLocalConfig } from "@devforge/config"
-import { ApiToDaemonMessageSchema, PROTOCOL_VERSION } from "@devforge/protocol"
+import {
+  ApiToDaemonMessageSchema,
+  DaemonToApiMessageSchema,
+  PROTOCOL_VERSION,
+} from "@devforge/protocol"
+import type { BindingRegistry } from "./binding-registry.js"
+import { BindingNotAllowedError } from "./binding-registry.js"
 
 type StartDaemonClientOptions = {
   config: DaemonConfig
   localConfig: DaemonLocalConfig
+  bindingRegistry: BindingRegistry
 }
 
-export function startDaemonClient({ config, localConfig }: StartDaemonClientOptions): WebSocket {
+export function startDaemonClient({
+  config,
+  localConfig,
+  bindingRegistry,
+}: StartDaemonClientOptions): WebSocket {
   const socket = new WebSocket(config.controlPlaneUrl, {
     headers: {
       Authorization: `Bearer ${config.credential}`,
@@ -37,7 +48,7 @@ export function startDaemonClient({ config, localConfig }: StartDaemonClientOpti
     socket.send(JSON.stringify(hello))
   })
 
-  socket.on("message", (data) => {
+  socket.on("message", async (data) => {
     let raw: unknown
 
     try {
@@ -66,7 +77,44 @@ export function startDaemonClient({ config, localConfig }: StartDaemonClientOpti
       return
     }
 
-    // command.request will be implemented in a later step.
+    if (message.type === "command.request") {
+      const startedAt = new Date().toISOString()
+
+      try {
+        await bindingRegistry.authorizeBinding(message.payload.projectId, message.payload.bindingId)
+
+        // Binding is locally authorized.
+        //
+        // Git execution is intentionally not implemented yet.
+        // The next step will use the approved canonical root.
+        return
+      } catch (error) {
+        if (!(error instanceof BindingNotAllowedError)) {
+          throw error
+        }
+
+        const completedAt = new Date().toISOString()
+
+        const response = DaemonToApiMessageSchema.safeParse({
+          version: PROTOCOL_VERSION,
+          type: "command.error",
+          messageId: randomUUID(),
+          payload: {
+            requestId: message.payload.requestId,
+            projectId: message.payload.projectId,
+            bindingId: message.payload.bindingId,
+            commandType: "git.status",
+            code: "BINDING_NOT_ALLOWED",
+            message: "Binding is not allowed",
+            startedAt,
+            completedAt,
+          },
+        })
+
+        socket.send(JSON.stringify(response))
+        return
+      }
+    }
   })
 
   socket.on("close", (code, reason) => {
