@@ -18,7 +18,8 @@
     "db:migrate": "pnpm --filter @devforge/db db:migrate",
     "db:seed": "pnpm --filter @devforge/db db:seed",
     "dev:api": "pnpm --filter @devforge/api dev",
-    "dev:daemon": "pnpm --filter @devforge/daemon dev"
+    "dev:daemon": "pnpm --filter @devforge/daemon dev",
+    "dev:web": "pnpm --filter @devforge/web dev"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",

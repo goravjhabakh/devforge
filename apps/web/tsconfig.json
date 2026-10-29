@@ -4,7 +4,8 @@
     "rootDir": "src",
     "outDir": "dist",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
-    "types": [],
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
     "declaration": false,
     "declarationMap": false
   },

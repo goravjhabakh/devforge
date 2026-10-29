@@ -1,5 +1,6 @@
 import websocketPlugin from "@fastify/websocket"
 import Fastify from "fastify"
+import cors from "@fastify/cors"
 
 import type { createDb } from "@devforge/db"
 
@@ -18,6 +19,10 @@ export type AppDeps = {
 
 export async function buildApp(deps: AppDeps) {
   const app = Fastify()
+
+  app.register(cors, {
+    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+  })
 
   await app.register(websocketPlugin)
 
