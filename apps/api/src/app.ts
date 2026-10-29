@@ -4,6 +4,7 @@ import Fastify from "fastify"
 import type { createDb } from "@devforge/db"
 
 import type { DaemonConnectionRegistry } from "./daemon/connection-registry.js"
+import type { PendingRequestManager } from "./daemon/pending-requests.js"
 import { registerDaemonWebSocket } from "./daemon/websocket.js"
 import { registerProjectRoutes } from "./routes/projects.js"
 
@@ -11,6 +12,8 @@ export type AppDeps = {
   db: ReturnType<typeof createDb>["db"]
   daemonWsPath: string
   registry: DaemonConnectionRegistry
+  pendingRequests: PendingRequestManager
+  commandTimeoutMs: number
 }
 
 export async function buildApp(deps: AppDeps) {

@@ -215,7 +215,11 @@ export function registerDaemonWebSocket(app: FastifyInstance, deps: AppDeps): vo
         })
 
         socket.on("close", () => {
-          deps.registry.removeConnection(daemonId, socket)
+          const removed = deps.registry.removeConnection(daemonId, socket)
+
+          if (removed) {
+            deps.pendingRequests.failForDaemon(daemonId)
+          }
         })
 
         await deps.db
@@ -268,8 +272,25 @@ export function registerDaemonWebSocket(app: FastifyInstance, deps: AppDeps): vo
         return
       }
 
-      // command.result and command.error become meaningful
-      // once command correlation exists in the next steps.
+      if (message.type === "command.result") {
+        const resolution = deps.pendingRequests.resolveResult(daemonId, message.payload)
+
+        if (resolution === "mismatch") {
+          socket.close(1008, "Command correlation mismatch")
+        }
+
+        return
+      }
+
+      if (message.type === "command.error") {
+        const resolution = deps.pendingRequests.resolveError(daemonId, message.payload)
+
+        if (resolution === "mismatch") {
+          socket.close(1008, "Command correlation mismatch")
+        }
+
+        return
+      }
     }
   })
 }

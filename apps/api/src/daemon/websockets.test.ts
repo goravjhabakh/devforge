@@ -9,6 +9,7 @@ import { daemons, projects } from "@devforge/db"
 import type { AppDeps } from "../app.js"
 import { buildApp } from "../app.js"
 import { DaemonConnectionRegistry } from "./connection-registry.js"
+import { PendingRequestManager } from "./pending-requests.js"
 
 const daemonId = "11111111-1111-4111-8111-111111111111"
 const otherDaemonId = "66666666-6666-4666-8666-666666666666"
@@ -123,6 +124,8 @@ describe("daemon WebSocket", () => {
       db: createFakeDb(),
       daemonWsPath: "/api/daemon",
       registry,
+      pendingRequests: new PendingRequestManager(),
+      commandTimeoutMs: 10_000,
     })
 
     apps.push(app)

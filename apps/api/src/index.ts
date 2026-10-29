@@ -4,16 +4,20 @@ import { createDb } from "@devforge/db"
 
 import { buildApp } from "./app.js"
 import { DaemonConnectionRegistry } from "./daemon/connection-registry.js"
+import { PendingRequestManager } from "./daemon/pending-requests.js"
 
 config({ path: "../../.env" })
 const apiConfig = loadApiConfig(process.env)
 const database = createDb(apiConfig.DATABASE_URL)
 const registry = new DaemonConnectionRegistry()
+const pendingRequests = new PendingRequestManager()
 
 const app = await buildApp({
   db: database.db,
   daemonWsPath: apiConfig.DAEMON_WS_PATH,
   registry,
+  pendingRequests,
+  commandTimeoutMs: apiConfig.DAEMON_COMMAND_TIMEOUT_MS,
 })
 
 let shuttingDown = false

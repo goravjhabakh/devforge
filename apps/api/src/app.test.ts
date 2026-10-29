@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { buildApp } from "./app.js"
 import { DaemonConnectionRegistry } from "./daemon/connection-registry.js"
+import { PendingRequestManager } from "./daemon/pending-requests.js"
 
 describe("GET /api/health", () => {
   it("returns 200 with status ok", async () => {
@@ -9,6 +10,8 @@ describe("GET /api/health", () => {
       db: {} as never,
       daemonWsPath: "/api/daemon",
       registry: new DaemonConnectionRegistry(),
+      pendingRequests: new PendingRequestManager(),
+      commandTimeoutMs: 10_000,
     })
 
     const response = await app.inject({
