@@ -12,6 +12,7 @@
   "dependencies": {
     "@devforge/config": "workspace:*",
     "@devforge/protocol": "workspace:*",
+    "@devforge/contracts": "workspace:*",
     "dotenv": "^18.0.9",
     "ws": "^8.22.0"
   },

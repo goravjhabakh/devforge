@@ -268,6 +268,9 @@ importers:
       "@devforge/config":
         specifier: workspace:*
         version: link:../../packages/config
+      "@devforge/contracts":
+        specifier: workspace:*
+        version: link:../../packages/contracts
       "@devforge/protocol":
         specifier: workspace:*
         version: link:../../packages/protocol

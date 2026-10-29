@@ -12,6 +12,7 @@ import {
 import type { BindingRegistry } from "./binding-registry.js"
 import { handleCommandRequest } from "./command-handler.js"
 import { runGitStatus } from "./git-status.js"
+import { applyBootstrapPlan } from "./bootstrap.js"
 
 type StartDaemonClientOptions = {
   config: DaemonConfig
@@ -49,7 +50,7 @@ export function startDaemonClient({
         payload: {
           daemonId: config.daemonId,
           supportedVersions: [PROTOCOL_VERSION],
-          capabilities: ["git.status"],
+          capabilities: ["git.status", "bootstrap.apply"],
           bindings: localConfig.bindings.map((binding) => ({
             projectId: binding.projectId,
             bindingId: binding.bindingId,
@@ -106,6 +107,7 @@ export function startDaemonClient({
           const outcome = await handleCommandRequest(message, {
             bindingRegistry,
             runGitStatus,
+            applyBootstrapPlan,
           })
 
           const response = DaemonToApiMessageSchema.parse({
@@ -122,21 +124,40 @@ export function startDaemonClient({
           // an unexpected internal failure occurred.
           const startedAt = new Date().toISOString()
           const completedAt = new Date().toISOString()
+          const command = message.payload.command
+
+          const payload =
+            command.type === "bootstrap.apply"
+              ? {
+                  requestId: message.payload.requestId,
+                  projectId: message.payload.projectId,
+                  bindingId: message.payload.bindingId,
+                  commandType: "bootstrap.apply" as const,
+                  planId: command.planId,
+                  planHash: command.planHash,
+                  code: "BOOTSTRAP_FAILED" as const,
+                  message: "Bootstrap failed",
+                  completedOperationCount: 0,
+                  reusedOperationCount: 0,
+                  startedAt,
+                  completedAt,
+                }
+              : {
+                  requestId: message.payload.requestId,
+                  projectId: message.payload.projectId,
+                  bindingId: message.payload.bindingId,
+                  commandType: "git.status" as const,
+                  code: "GIT_STATUS_FAILED" as const,
+                  message: "Git status failed",
+                  startedAt,
+                  completedAt,
+                }
 
           const response = DaemonToApiMessageSchema.parse({
             version: PROTOCOL_VERSION,
             type: "command.error",
             messageId: randomUUID(),
-            payload: {
-              requestId: message.payload.requestId,
-              projectId: message.payload.projectId,
-              bindingId: message.payload.bindingId,
-              commandType: "git.status",
-              code: "GIT_STATUS_FAILED",
-              message: "Git status failed",
-              startedAt,
-              completedAt,
-            },
+            payload,
           })
 
           socket.send(JSON.stringify(response))
