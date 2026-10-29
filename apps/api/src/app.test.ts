@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest"
 
 import { buildApp } from "./app.js"
+import { DaemonConnectionRegistry } from "./daemon/connection-registry.js"
 
 describe("GET /api/health", () => {
   it("returns 200 with status ok", async () => {
-    const app = buildApp({
+    const app = await buildApp({
       db: {} as never,
+      daemonWsPath: "/api/daemon",
+      registry: new DaemonConnectionRegistry(),
     })
 
     const response = await app.inject({

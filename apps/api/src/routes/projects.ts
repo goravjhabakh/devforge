@@ -83,6 +83,16 @@ export function registerProjectRoutes(app: FastifyInstance, deps: AppDeps) {
           }
         : null
 
+    const connection = deps.registry.getConnection(project.daemonId)
+
+    const connected = connection !== undefined
+
+    const available = deps.registry.hasAcceptedBinding(
+      project.daemonId,
+      project.id,
+      project.daemonBindingId
+    )
+
     const response = ProjectDetailSchema.parse({
       project: {
         id: project.id,
@@ -91,12 +101,12 @@ export function registerProjectRoutes(app: FastifyInstance, deps: AppDeps) {
 
       daemon: {
         id: daemon.id,
-        connected: false,
+        connected,
         lastSeenAt: daemon.lastSeenAt?.toISOString() ?? null,
       },
 
       binding: {
-        available: false,
+        available,
       },
 
       latestStatus,

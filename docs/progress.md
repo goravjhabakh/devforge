@@ -54,6 +54,10 @@ Before implementation begins:
 2. review and approve the proposed slice
 3. implement only the approved Phase 1 scope
 
+## Resolved this session
+
+- Daemon WebSocket handshake race: `socket.on("message")` was attached only after `await authenticateDaemon`, so `daemon.hello` (sent immediately after the socket opens) was dropped by the `ws` library. The listener is now attached before authentication and pre-authentication frames are buffered and replayed. Verified end to end: `GET /api/projects/22222222-2222-4222-8222-222222222222` now returns `connected: true` and `available: true` once a daemon is connected.
+
 ## Current V1 architecture slice to prove
 
 The first meaningful product milestone after foundation is:
