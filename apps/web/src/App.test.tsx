@@ -149,10 +149,14 @@ describe("App", () => {
 
     mockedGetProject.mockResolvedValueOnce(initialProject).mockResolvedValueOnce(refreshedProject)
 
+    if (!refreshedProject.latestStatus) {
+      throw new Error("Expected latestStatus to be defined")
+    }
+
     mockedRefreshGitStatus.mockResolvedValue({
       requestId: "66666666-6666-4666-8666-666666666666",
       completedAt: "2026-10-29T08:05:00.000Z",
-      status: refreshedProject.latestStatus!.status,
+      status: refreshedProject.latestStatus.status,
     })
 
     render(<App apiBaseUrl="http://127.0.0.1:3000" />)

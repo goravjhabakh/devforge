@@ -42,7 +42,13 @@ export function isValidBootstrapPath(path: string): boolean {
     return false
   }
 
-  if (/[\u0000-\u001F\u007F]/.test(path)) {
+  const hasControlCharacter = Array.from(path).some((character) => {
+    const code = character.charCodeAt(0)
+
+    return code <= 0x1f || code === 0x7f
+  })
+
+  if (hasControlCharacter) {
     return false
   }
 

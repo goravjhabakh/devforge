@@ -294,6 +294,10 @@ export function registerProjectRoutes(app: FastifyInstance, deps: AppDeps) {
     const outcome = await pending
 
     if (outcome.type === "result") {
+      if (outcome.payload.commandType !== "git.status") {
+        throw new Error(`Expected git.status result, received ${outcome.payload.commandType}`)
+      }
+
       const succeededEvent = ActivityEventSchema.parse({
         id: randomUUID(),
         projectId: project.id,
